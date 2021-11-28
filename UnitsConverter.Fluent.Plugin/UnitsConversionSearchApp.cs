@@ -109,6 +109,17 @@ namespace UnitsConverter.Fluent.Plugin
             string searchedText = searchRequest.SearchedText;
 
             QuantityType quantityType = QuantityType.Undefined;
+
+            if (searchedTag.Equals(UnitsConverterSearchTag) && !string.IsNullOrWhiteSpace(searchedText))
+            {
+                var converted = ConvertUtil.ConvertWithoutQuantity(searchedText);
+                foreach (var r in converted)
+                {
+                    yield return new UnitsConversionSearchResult(searchedText, r, IconGlyph, _convertedOperations, _searchTags);
+                }
+
+            }
+
             if (!searchedTag.Equals(UnitsConverterSearchTag) &&
                 !_supportedQuantities.Any(x => Enum.TryParse<QuantityType>(searchedTag, true, out quantityType)))
                 yield break;

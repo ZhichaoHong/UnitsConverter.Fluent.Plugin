@@ -27,6 +27,82 @@ namespace UnitsConverter.Fluent.Plugin
             QuantityType.Volume,
         };
 
+        public static List<IQuantity> ConvertWithoutQuantity(string text)
+        {
+            // The text is in the form of "5 lb in kg" or "5 lbs to kg"
+            string[] parts = text.Split(new string[] { "in", "to" }, StringSplitOptions.RemoveEmptyEntries);
+            string from = parts[0].Trim();
+            string to = parts.Length > 1 ? parts[1].Trim() : null;
+            
+            if (Acceleration.TryParse(from, out Acceleration accel))
+            {
+                return Convert(from, QuantityType.Acceleration, to);
+            }
+
+            if (Angle.TryParse(from, out Angle angle))
+            {
+                return Convert(from, QuantityType.Angle, to);
+            }
+
+            if (Area.TryParse(from, out Area area))
+            {
+                return Convert(from, QuantityType.Area, to);
+            }
+
+            if (Duration.TryParse(from, out Duration duration))
+            {
+                return Convert(from, QuantityType.Duration, to);
+            }
+
+            if (Energy.TryParse(from, out Energy energy))
+            {
+                return Convert(from, QuantityType.Energy, to);
+            }
+
+            if (Information.TryParse(from, out Information information))
+            {
+                return Convert(from, QuantityType.Information, to);
+            }
+
+            if (Length.TryParse(from, out Length length))
+            {
+                return Convert(from, QuantityType.Length, to);
+            }
+
+            if (Mass.TryParse(from, out Mass mass))
+            {
+                return Convert(from, QuantityType.Mass, to);
+            }
+
+            if (Power.TryParse(from, out Power power))
+            {
+                return Convert(from, QuantityType.Power, to); 
+            }
+
+            if (Pressure.TryParse(from, out Pressure pressure))
+            {
+                return Convert(from, QuantityType.Pressure, to);
+            }
+
+            if (Speed.TryParse(from, out Speed speed))
+            {
+                return Convert(from, QuantityType.Speed, to);
+            }
+
+            if (Temperature.TryParse(from, out Temperature temperature))
+            {
+                return Convert(from, QuantityType.Temperature, to);
+            }
+
+            if (Volume.TryParse(from.ToString(), out Volume volume))
+            {
+                return Convert(from, QuantityType.Volume, to);
+            }
+
+            return new List<IQuantity>();
+
+        }
+
         public static List<IQuantity> Convert(string quantity, QuantityType quantityType, string toUnit = null)
         {
             List<IQuantity> result = new List<IQuantity>();
