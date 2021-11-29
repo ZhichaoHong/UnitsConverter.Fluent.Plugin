@@ -88,7 +88,7 @@ namespace UnitsConverter.Fluent.Plugin
 
             return results;
         }
-        public static List<IQuantity> ConvertAll(string quantity, QuantityType quantityType, string toUnit = null)
+        public static List<IQuantity> ConvertAll(string quantity, QuantityType quantityType, string toUnit)
         {
             List<IQuantity> result = new List<IQuantity>();
             switch (quantityType)

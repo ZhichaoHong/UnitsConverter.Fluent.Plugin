@@ -75,23 +75,23 @@ namespace UnitsConverter.Fluent.Plugin
 
         public ValueTask<IHandleResult> HandleSearchResult(ISearchResult searchResult)
         {
-            Type type = searchResult.GetType();
-
-            if (type == typeof(QuantitySearchResult))
+            switch (searchResult)
             {
-                // This will cause Fluent Search to search again using the selected quantity type
-                SearchTag searchTag = searchResult.Tags.FirstOrDefault();
-                return new ValueTask<IHandleResult>(new HandleResult(true, true)
-                {
-                    SearchRequest = new SearchRequest(string.Empty, searchTag?.Name, SearchType.SearchAll),
-                    SearchTag = searchTag
-                });
-            }
 
-            // Type is UnitsConversionSearchResult
-            string resultToCopy = searchResult.ResultName;
-            Clipboard.SetText(resultToCopy);
-            return new ValueTask<IHandleResult>(new HandleResult(true, false));
+                case UnitsConversionSearchResult:
+                    string resultToCopy = searchResult.ResultName;
+                    Clipboard.SetText(resultToCopy);
+                    return new ValueTask<IHandleResult>(new HandleResult(true, false));
+                case QuantitySearchResult:
+                    SearchTag searchTag = searchResult.Tags.FirstOrDefault();
+                    return new ValueTask<IHandleResult>(new HandleResult(true, true)
+                    {
+                        SearchRequest = new SearchRequest(string.Empty, searchTag?.Name, SearchType.SearchAll),
+                        SearchTag = searchTag
+                    });
+                default:
+                    return new(); // default do nothing
+            }
         }
 
         public ValueTask<ISearchResult> GetSearchResultForId(string serializedSearchObjectId)
@@ -116,7 +116,14 @@ namespace UnitsConverter.Fluent.Plugin
 
             if (searchedTag.Equals(UnitsConverterSearchTag) && !string.IsNullOrWhiteSpace(searchedText))
             {
-                ConvertModel model = InputInterpreter.Parse(searchedText);
+                string query = searchedText;
+                bool convertsMore = false;
+                if (searchedText.EndsWith("..."))
+                {
+                    query = searchedText.Substring(0, searchedText.Length - "...".Length);
+                    convertsMore = true;
+                }
+                ConvertModel model = InputInterpreter.Parse(query);
                 if (model == null)
                 {
                     yield break;
@@ -129,6 +136,7 @@ namespace UnitsConverter.Fluent.Plugin
                     foreach (var q in quantities)
                     {
                         yield return new UnitsConversionSearchResult(searchedText, q, IconGlyph, _convertedOperations, _searchTags);
+                        if (!convertsMore) yield break;
                     }
                 }
             }
