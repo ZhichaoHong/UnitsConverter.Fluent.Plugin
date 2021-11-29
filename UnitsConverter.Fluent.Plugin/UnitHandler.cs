@@ -8,8 +8,10 @@ using UnitsNet.Units;
 
 namespace UnitsConverter.Fluent.Plugin
 {
-    internal class ConvertUtil
+    public static class UnitHandler
     {
+        private static readonly int _roundingFractionalDigits = 4;
+
         private static readonly QuantityType[] _included = new QuantityType[]
         {
             QuantityType.Acceleration,
@@ -27,83 +29,66 @@ namespace UnitsConverter.Fluent.Plugin
             QuantityType.Volume,
         };
 
-        public static List<IQuantity> ConvertWithoutQuantity(string text)
+        /// <summary>
+        /// Given string representation of unit, converts it to the enum.
+        /// </summary>
+        /// <returns>Corresponding enum or null.</returns>
+        private static Enum GetUnitEnum(string unit, QuantityInfo unitInfo)
         {
-            // The text is in the form of "5 lb in kg" or "5 lbs to kg"
-            string[] parts = text.Split(new string[] { "in", "to" }, StringSplitOptions.RemoveEmptyEntries);
-            string from = parts[0].Trim();
-            string to = parts.Length > 1 ? parts[1].Trim() : null;
-            
-            if (Acceleration.TryParse(from, out Acceleration accel))
+            UnitInfo first = Array.Find(unitInfo.UnitInfos, info => info.Name.ToLower() == unit.ToLower());
+            if (first != null)
             {
-                return Convert(from, QuantityType.Acceleration, to);
+                return first.Value;
             }
 
-            if (Angle.TryParse(from, out Angle angle))
+            if (UnitParser.Default.TryParse(unit, unitInfo.UnitType, out Enum enum_unit))
             {
-                return Convert(from, QuantityType.Angle, to);
+                return enum_unit;
             }
 
-            if (Area.TryParse(from, out Area area))
-            {
-                return Convert(from, QuantityType.Area, to);
-            }
-
-            if (Duration.TryParse(from, out Duration duration))
-            {
-                return Convert(from, QuantityType.Duration, to);
-            }
-
-            if (Energy.TryParse(from, out Energy energy))
-            {
-                return Convert(from, QuantityType.Energy, to);
-            }
-
-            if (Information.TryParse(from, out Information information))
-            {
-                return Convert(from, QuantityType.Information, to);
-            }
-
-            if (Length.TryParse(from, out Length length))
-            {
-                return Convert(from, QuantityType.Length, to);
-            }
-
-            if (Mass.TryParse(from, out Mass mass))
-            {
-                return Convert(from, QuantityType.Mass, to);
-            }
-
-            if (Power.TryParse(from, out Power power))
-            {
-                return Convert(from, QuantityType.Power, to); 
-            }
-
-            if (Pressure.TryParse(from, out Pressure pressure))
-            {
-                return Convert(from, QuantityType.Pressure, to);
-            }
-
-            if (Speed.TryParse(from, out Speed speed))
-            {
-                return Convert(from, QuantityType.Speed, to);
-            }
-
-            if (Temperature.TryParse(from, out Temperature temperature))
-            {
-                return Convert(from, QuantityType.Temperature, to);
-            }
-
-            if (Volume.TryParse(from.ToString(), out Volume volume))
-            {
-                return Convert(from, QuantityType.Volume, to);
-            }
-
-            return new List<IQuantity>();
-
+            return null;
         }
 
-        public static List<IQuantity> Convert(string quantity, QuantityType quantityType, string toUnit = null)
+        /// <summary>
+        /// Given parsed ConvertModel, computes result. (E.g "1 foot in cm").
+        /// </summary>
+        /// <returns>The converted value as a double.</returns>
+        public static double ConvertInput(ConvertModel convertModel, QuantityType quantityType)
+        {
+            QuantityInfo unitInfo = Quantity.GetInfo(quantityType);
+
+            var fromUnit = GetUnitEnum(convertModel.FromUnit, unitInfo);
+            var toUnit = GetUnitEnum(convertModel.ToUnit, unitInfo);
+
+            if (fromUnit != null && toUnit != null)
+            {
+                return UnitsNet.UnitConverter.Convert(convertModel.Value, fromUnit, toUnit);
+            }
+
+            return double.NaN;
+        }
+
+        /// <summary>
+        /// Given ConvertModel returns collection of possible results.
+        /// </summary>
+        /// <returns>The converted value as a double.</returns>
+        public static IEnumerable<UnitConversionResult> Convert(ConvertModel convertModel)
+        {
+            var results = new List<UnitConversionResult>();
+            foreach (QuantityType quantityType in _included)
+            {
+                double convertedValue = UnitHandler.ConvertInput(convertModel, quantityType);
+
+                if (!double.IsNaN(convertedValue))
+                {
+                    UnitConversionResult result = new UnitConversionResult(Math.Round(convertedValue, _roundingFractionalDigits), convertModel.ToUnit, quantityType);
+                    results.Add(result);
+                }
+            }
+
+            return results;
+        }
+        public static List<IQuantity> ConvertAll(string quantity, QuantityType quantityType, string toUnit = null)
         {
             List<IQuantity> result = new List<IQuantity>();
             switch (quantityType)
@@ -116,12 +101,9 @@ namespace UnitsConverter.Fluent.Plugin
                         if (UnitParser.Default.TryParse<AccelerationUnit>(toUnit, out tu))
                         {
                             result.Add(accel.ToUnit(tu));
-                        }
-                        else
-                        {
                             foreach (var unit in Acceleration.Units)
                             {
-                                if (accel.Unit == unit) continue;
+                                if (accel.Unit == unit || tu == unit) continue;
                                 result.Add(accel.ToUnit(unit));
                             }
                         }
@@ -136,12 +118,9 @@ namespace UnitsConverter.Fluent.Plugin
                         if (UnitParser.Default.TryParse<AngleUnit>(toUnit, out tu))
                         {
                             result.Add(angle.ToUnit(tu));
-                        }
-                        else
-                        {
                             foreach (var unit in Angle.Units)
                             {
-                                if (angle.Unit == unit) continue;
+                                if (angle.Unit == unit || tu == unit) continue;
                                 result.Add(angle.ToUnit(unit));
                             }
                         }
@@ -156,12 +135,9 @@ namespace UnitsConverter.Fluent.Plugin
                         if (UnitParser.Default.TryParse<AreaUnit>(toUnit, out tu))
                         {
                             result.Add(area.ToUnit(tu));
-                        }
-                        else
-                        {
                             foreach (var unit in Area.Units)
                             {
-                                if (area.Unit == unit) continue;
+                                if (area.Unit == unit || tu == unit) continue;
                                 result.Add(area.ToUnit(unit));
                             }
                         }
@@ -176,12 +152,9 @@ namespace UnitsConverter.Fluent.Plugin
                         if (UnitParser.Default.TryParse<DurationUnit>(toUnit, out tu))
                         {
                             result.Add(duration.ToUnit(tu));
-                        }
-                        else
-                        {
                             foreach (var unit in Duration.Units)
                             {
-                                if (duration.Unit == unit) continue;
+                                if (duration.Unit == unit || tu == unit) continue;
                                 result.Add(duration.ToUnit(unit));
                             }
                         }
@@ -196,13 +169,9 @@ namespace UnitsConverter.Fluent.Plugin
                         if (UnitParser.Default.TryParse<EnergyUnit>(toUnit, out tu))
                         {
                             result.Add(energy.ToUnit(tu));
-
-                        }
-                        else
-                        {
                             foreach (var unit in Energy.Units)
                             {
-                                if (energy.Unit == unit) continue;
+                                if (energy.Unit == unit || tu == unit) continue;
                                 result.Add(energy.ToUnit(unit));
                             }
                         }
@@ -217,12 +186,9 @@ namespace UnitsConverter.Fluent.Plugin
                         if (UnitParser.Default.TryParse(toUnit, out tu))
                         {
                             result.Add(information.ToUnit(tu));
-                        }
-                        else
-                        {
                             foreach (var unit in Information.Units)
                             {
-                                if (information.Unit == unit) continue;
+                                if (information.Unit == unit || tu == unit) continue;
                                 result.Add(information.ToUnit(unit));
                             }
                         }
@@ -237,12 +203,9 @@ namespace UnitsConverter.Fluent.Plugin
                         if (UnitParser.Default.TryParse(toUnit, out tu))
                         {
                             result.Add(length.ToUnit(tu));
-                        }
-                        else
-                        {
                             foreach (var unit in Length.Units)
                             {
-                                if (length.Unit == unit) continue;
+                                if (length.Unit == unit || tu == unit) continue;
                                 result.Add(length.ToUnit(unit));
                             }
                         }
@@ -257,12 +220,9 @@ namespace UnitsConverter.Fluent.Plugin
                         if (UnitParser.Default.TryParse<MassUnit>(toUnit, out tu))
                         {
                             result.Add(mass.ToUnit(tu));
-                        }
-                        else
-                        {
                             foreach (var unit in Mass.Units)
                             {
-                                if (mass.Unit == unit) continue;
+                                if (mass.Unit == unit || tu == unit) continue;
                                 result.Add(mass.ToUnit(unit));
                             }
                         }
@@ -277,12 +237,9 @@ namespace UnitsConverter.Fluent.Plugin
                         if (UnitParser.Default.TryParse(toUnit, out tu))
                         {
                             result.Add(power.ToUnit(tu));
-                        }
-                        else
-                        {
                             foreach (var unit in Power.Units)
                             {
-                                if (power.Unit == unit) continue;
+                                if (power.Unit == unit || tu == unit) continue;
                                 result.Add(power.ToUnit(unit));
                             }
                         }
@@ -297,12 +254,9 @@ namespace UnitsConverter.Fluent.Plugin
                         if (UnitParser.Default.TryParse(toUnit, out tu))
                         {
                             result.Add(pressure.ToUnit(tu));
-                        }
-                        else
-                        {
                             foreach (var unit in Pressure.Units)
                             {
-                                if (pressure.Unit == unit) continue;
+                                if (pressure.Unit == unit || tu == unit) continue;
                                 result.Add(pressure.ToUnit(unit));
                             }
                         }
@@ -317,12 +271,9 @@ namespace UnitsConverter.Fluent.Plugin
                         if (UnitParser.Default.TryParse<SpeedUnit>(toUnit, out tu))
                         {
                             result.Add(speed.ToUnit(tu));
-                        }
-                        else
-                        {
                             foreach (var unit in Speed.Units)
                             {
-                                if (speed.Unit == unit) continue;
+                                if (speed.Unit == unit || tu == unit) continue;
                                 result.Add(speed.ToUnit(unit));
                             }
                         }
@@ -338,12 +289,9 @@ namespace UnitsConverter.Fluent.Plugin
                         if (UnitParser.Default.TryParse(toUnit, out tu))
                         {
                             result.Add(temperature.ToUnit(tu));
-                        }
-                        else
-                        {
                             foreach (var unit in Temperature.Units)
                             {
-                                if (temperature.Unit == unit) continue;
+                                if (temperature.Unit == unit || tu == unit) continue;
                                 result.Add(temperature.ToUnit(unit));
                             }
                         }
@@ -358,12 +306,9 @@ namespace UnitsConverter.Fluent.Plugin
                         if (UnitParser.Default.TryParse<VolumeUnit>(toUnit, out tu))
                         {
                             result.Add(volume.ToUnit(tu));
-                        }
-                        else
-                        {
                             foreach (var unit in Volume.Units)
                             {
-                                if (volume.Unit == unit) continue;
+                                if (volume.Unit == unit || tu == unit) continue;
                                 result.Add(volume.ToUnit(unit));
                             }
                         }

@@ -42,7 +42,7 @@ namespace UnitsConverter.Fluent.Plugin
 
         public UnitsConversionSearchApp()
         {
-            _searchTags = _supportedQuantities.Select(x => new SearchTag { Name = x.ToString(), Description = $"Converts {x.ToString()} Units", IconGlyph = IconGlyph }).ToList();
+            _searchTags = new List<SearchTag> { new SearchTag() { Name = "unitsconverter", Description = "Converts Units", IconGlyph = IconGlyph } };
 
             var copySearchOperation = new CopySearchOperation();
             var unitsConversionSearchOperation = new UnitsConversionSearchOperation();
@@ -105,62 +105,33 @@ namespace UnitsConverter.Fluent.Plugin
         {
             if (cancellationToken.IsCancellationRequested || searchRequest.SearchType == SearchType.SearchProcess)
                 yield break;
+
             string searchedTag = searchRequest.SearchedTag;
             string searchedText = searchRequest.SearchedText;
 
-            QuantityType quantityType = QuantityType.Undefined;
+            if (string.IsNullOrWhiteSpace(searchedText))
+            {
+                yield return new QuantitySearchResult(searchedText, _supportedQuantities, IconGlyph, _supportedOperations);
+            }
 
             if (searchedTag.Equals(UnitsConverterSearchTag) && !string.IsNullOrWhiteSpace(searchedText))
             {
-                var converted = ConvertUtil.ConvertWithoutQuantity(searchedText);
-                foreach (var r in converted)
-                {
-                    yield return new UnitsConversionSearchResult(searchedText, r, IconGlyph, _convertedOperations, _searchTags);
-                }
-
-            }
-
-            if (!searchedTag.Equals(UnitsConverterSearchTag) &&
-                !_supportedQuantities.Any(x => Enum.TryParse<QuantityType>(searchedTag, true, out quantityType)))
-                yield break;
-
-            if (quantityType == QuantityType.Undefined)
-            {
-                bool searchAll = string.IsNullOrWhiteSpace(searchedText);
-                foreach(string quantityName in _supportedQuantities.Select(x => x.ToString()))
-                {
-                    if (searchAll || quantityName.SearchBlind(searchedTag))
-                        yield return new QuantitySearchResult(searchedText, quantityName, IconGlyph, _supportedOperations);
-                }
-                yield break;
-            }
-
-            var results = new List<IQuantity>();
-            try
-            {
-                string[] parts = searchedText.Split(new string[] { "in", "to" }, StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length > 1)
-                {
-                    results = ConvertUtil.Convert(parts[0].Trim(), quantityType, parts[1].Trim());
-                }
-                else
-                {
-                    results = ConvertUtil.Convert(parts[0].Trim(), quantityType);
-                }
-                if (results.Count == 0)
+                ConvertModel model = InputInterpreter.Parse(searchedText);
+                if (model == null)
                 {
                     yield break;
                 }
-            }
-            catch (Exception ex)
-            {
-                yield break;
-            }
-            foreach (var r in results)
-            {
-                yield return new UnitsConversionSearchResult(searchedText, r, IconGlyph, _convertedOperations, _searchTags);
-            }
 
+                foreach (var cr in UnitHandler.Convert(model))
+                {
+                    string originalValue = $"{model.Value} {model.FromUnit}";
+                    var quantities = UnitHandler.ConvertAll(originalValue, cr.QuantityType, model.ToUnit);
+                    foreach (var q in quantities)
+                    {
+                        yield return new UnitsConversionSearchResult(searchedText, q, IconGlyph, _convertedOperations, _searchTags);
+                    }
+                }
+            }
         }
     }
 }

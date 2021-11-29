@@ -15,10 +15,9 @@ public class UnitsConversionSearchResult : SearchResultBase
 
         if (!string.IsNullOrWhiteSpace(result.ToString()))
         {
-            InformationElements = new List<InformationElement> { new("Converted", result.ToString()) };
+            InformationElements = new List<InformationElement> { new("Converted in", $"{result.QuantityInfo.QuantityType}") };
         }
     }
-
     public string Quantity { get; }
     public string ConvertedQuantity { get; private set; }
 
