@@ -133,9 +133,19 @@ namespace UnitsConverter.Fluent.Plugin
                 {
                     string originalValue = $"{model.Value} {model.FromUnit}";
                     var quantities = UnitHandler.ConvertAll(originalValue, cr.QuantityType, model.ToUnit);
+                    bool isFirst = true;
                     foreach (var q in quantities)
                     {
-                        yield return new UnitsConversionSearchResult(searchedText, q, IconGlyph, _convertedOperations, _searchTags);
+                        double score = 10;
+                        if (isFirst)
+                        {
+                            isFirst = false;
+                        }
+                        else
+                        {
+                            score = 1;
+                        }
+                        yield return new UnitsConversionSearchResult(searchedText, q, IconGlyph, _convertedOperations, _searchTags, score);
                         if (!convertsMore) yield break;
                     }
                 }

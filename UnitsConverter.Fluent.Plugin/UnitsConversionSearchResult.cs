@@ -8,7 +8,7 @@ namespace UnitsConverter.Fluent.Plugin;
 public class UnitsConversionSearchResult : SearchResultBase
 {
     public UnitsConversionSearchResult(string searchedText, IQuantity result, string iconGlyph, IList<ISearchOperation> supportedOperations,
-        ICollection<SearchTag> tags) : base(result.ToString(), searchedText, result.Unit.ToString(), 1, supportedOperations, tags)
+        ICollection<SearchTag> tags, double score=1) : base(result.ToString(), searchedText, result.Unit.ToString(), score, supportedOperations, tags)
     {
         UseIconGlyph = true;
         IconGlyph = iconGlyph;
@@ -17,6 +17,8 @@ public class UnitsConversionSearchResult : SearchResultBase
         {
             InformationElements = new List<InformationElement> { new("Converted in", $"{result.QuantityInfo.QuantityType}") };
         }
+
+        MlFeatures = new Dictionary<string, string> { ["UnitType"] = result.Unit.ToString() };
     }
     public string Quantity { get; }
     public string ConvertedQuantity { get; private set; }
