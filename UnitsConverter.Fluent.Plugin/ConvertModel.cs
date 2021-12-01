@@ -1,4 +1,5 @@
-﻿using System;
+﻿// The implementation is largely borrowed from Powertoys Run units converter plugin and adapted to FS plugins architecture.
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;

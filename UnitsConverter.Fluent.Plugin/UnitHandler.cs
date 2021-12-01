@@ -1,4 +1,5 @@
-﻿using System;
+﻿// The implementation is largely borrowed from Powertoys Run units converter plugin and adapted to FS plugins architecture.
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -35,6 +36,11 @@ namespace UnitsConverter.Fluent.Plugin
         /// <returns>Corresponding enum or null.</returns>
         private static Enum GetUnitEnum(string unit, QuantityInfo unitInfo)
         {
+            if (unit == null)
+            {
+                return null;
+            }
+
             UnitInfo first = Array.Find(unitInfo.UnitInfos, info => info.Name.ToLower() == unit.ToLower());
             if (first != null)
             {
@@ -68,26 +74,59 @@ namespace UnitsConverter.Fluent.Plugin
             return double.NaN;
         }
 
+        private static IEnumerable<IQuantity> ConvertFromUnit(ConvertModel convertModel, QuantityType quantityType)
+        {
+            var results = new List<IQuantity>();
+            QuantityInfo unitInfo = Quantity.GetInfo(quantityType);
+
+            var fromUnit = GetUnitEnum(convertModel.FromUnit, unitInfo);
+            if (fromUnit != null)
+            {
+                var quantity = Quantity.From(convertModel.Value, fromUnit);
+                foreach (var tounit in quantity.QuantityInfo.UnitInfos)
+                {
+                    if (fromUnit == tounit.Value || tounit.Name.ToLower() == "undefined") continue;
+                    var convertedValue = UnitConverter.Convert(convertModel.Value, fromUnit, tounit.Value);
+                    results.Add(Quantity.From(convertedValue, tounit.Value));
+                }
+            }
+            return results;
+        }
+
         /// <summary>
         /// Given ConvertModel returns collection of possible results.
         /// </summary>
         /// <returns>The converted value as a double.</returns>
-        public static IEnumerable<UnitConversionResult> Convert(ConvertModel convertModel)
+        public static IEnumerable<IQuantity> Convert(ConvertModel convertModel)
         {
-            var results = new List<UnitConversionResult>();
-            foreach (QuantityType quantityType in _included)
+            var results = new List<IQuantity>();
+            if (convertModel.ToUnit != null)
             {
-                double convertedValue = UnitHandler.ConvertInput(convertModel, quantityType);
-
-                if (!double.IsNaN(convertedValue))
+                foreach (QuantityType quantityType in _included)
                 {
-                    UnitConversionResult result = new UnitConversionResult(Math.Round(convertedValue, _roundingFractionalDigits), convertModel.ToUnit, quantityType);
-                    results.Add(result);
+                    double convertedValue = UnitHandler.ConvertInput(convertModel, quantityType);
+                    QuantityInfo unitInfo = Quantity.GetInfo(quantityType);
+                    var toUnit = GetUnitEnum(convertModel.ToUnit, unitInfo);
+
+                    if (!double.IsNaN(convertedValue))
+                    {
+                        //UnitConversionResult result = new UnitConversionResult(Math.Round(convertedValue, _roundingFractionalDigits), convertModel.ToUnit, quantityType);
+                        results.Add(Quantity.From(convertedValue, toUnit));
+                    }
                 }
+            }
+            else
+            {
+                foreach (QuantityType quantityType in _included)
+                {
+                    results.AddRange(ConvertFromUnit(convertModel, quantityType).ToList());
+                }
+
             }
 
             return results;
         }
+
         public static List<IQuantity> ConvertAll(string quantity, QuantityType quantityType, string toUnit)
         {
             List<IQuantity> result = new List<IQuantity>();

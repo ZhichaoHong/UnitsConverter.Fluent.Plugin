@@ -1,4 +1,5 @@
-﻿using System;
+﻿// The implementation is largely borrowed from Powertoys Run units converter plugin and adapted to FS plugins architecture.
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -127,26 +128,29 @@ namespace UnitsConverter.Fluent.Plugin
                     break;
             }
 
-            switch (split[3].ToLower())
+            if (split.Length > 3)
             {
-                case "celsius":
-                    split[3] = "DegreeCelsius";
-                    break;
+                switch (split[3].ToLower())
+                {
+                    case "celsius":
+                        split[3] = "DegreeCelsius";
+                        break;
 
-                case "fahrenheit":
-                    split[3] = "DegreeFahrenheit";
-                    break;
+                    case "fahrenheit":
+                        split[3] = "DegreeFahrenheit";
+                        break;
 
-                case "c":
-                    split[3] = "°c";
-                    break;
+                    case "c":
+                        split[3] = "°c";
+                        break;
 
-                case "f":
-                    split[3] = "°f";
-                    break;
+                    case "f":
+                        split[3] = "°f";
+                        break;
 
-                default:
-                    break;
+                    default:
+                        break;
+                }
             }
         }
 
@@ -157,11 +161,13 @@ namespace UnitsConverter.Fluent.Plugin
             InputInterpreter.ShorthandFeetInchHandler(ref split, CultureInfo.CurrentCulture);
             InputInterpreter.InputSpaceInserter(ref split);
 
-            if (split.Length != 4)
+            if (split.Length != 4 && split.Length != 2)
             {
                 // deny any other queries than:
                 // 10 ft in cm
                 // 10 ft to cm
+                // if fromUnitOnly, we deny any other queries than:
+                // 10 ft
                 return null;
             }
 
@@ -175,7 +181,7 @@ namespace UnitsConverter.Fluent.Plugin
             {
                 Value = value,
                 FromUnit = split[1],
-                ToUnit = split[3],
+                ToUnit = (split.Length == 2) ? null : split[3]
             };
         }
     }

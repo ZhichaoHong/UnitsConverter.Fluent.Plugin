@@ -59,7 +59,7 @@ namespace UnitsConverter.Fluent.Plugin
             {
                 IsProcessSearchEnabled = false,
                 IsProcessSearchOffline = false,
-                SearchTagOnly = true,
+                SearchTagOnly = false,
                 ApplicationIconGlyph = IconGlyph,
                 SearchAllTime = ApplicationSearchTime.Fast,
                 DefaultSearchTags = _searchTags
@@ -114,40 +114,20 @@ namespace UnitsConverter.Fluent.Plugin
                 yield return new QuantitySearchResult(searchedText, _supportedQuantities, IconGlyph, _supportedOperations);
             }
 
-            if (searchedTag.Equals(UnitsConverterSearchTag) && !string.IsNullOrWhiteSpace(searchedText))
+            string query = searchedText;
+            ConvertModel model = InputInterpreter.Parse(query);
+            if (model == null)
             {
-                string query = searchedText;
-                bool convertsMore = false;
-                if (searchedText.EndsWith("..."))
-                {
-                    query = searchedText.Substring(0, searchedText.Length - "...".Length);
-                    convertsMore = true;
-                }
-                ConvertModel model = InputInterpreter.Parse(query);
-                if (model == null)
-                {
-                    yield break;
-                }
+                yield break;
+            }
 
-                foreach (var cr in UnitHandler.Convert(model))
+            if (model.ToUnit != null || searchedTag.Equals(UnitsConverterSearchTag))
+            {
+                var quantities = UnitHandler.Convert(model);
+                foreach (var q in quantities)
                 {
-                    string originalValue = $"{model.Value} {model.FromUnit}";
-                    var quantities = UnitHandler.ConvertAll(originalValue, cr.QuantityType, model.ToUnit);
-                    bool isFirst = true;
-                    foreach (var q in quantities)
-                    {
-                        double score = 10;
-                        if (isFirst)
-                        {
-                            isFirst = false;
-                        }
-                        else
-                        {
-                            score = 1;
-                        }
-                        yield return new UnitsConversionSearchResult(searchedText, q, IconGlyph, _convertedOperations, _searchTags, score);
-                        if (!convertsMore) yield break;
-                    }
+                    double score = (searchedTag != UnitsConverterSearchTag) ? 90.0 : 1.0;
+                    yield return new UnitsConversionSearchResult(searchedText, q, IconGlyph, _convertedOperations, _searchTags, score);
                 }
             }
         }
