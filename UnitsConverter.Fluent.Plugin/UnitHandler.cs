@@ -11,7 +11,6 @@ namespace UnitsConverter.Fluent.Plugin
 {
     public static class UnitHandler
     {
-        private static readonly int _roundingFractionalDigits = 4;
 
         private static readonly QuantityType[] _included = new QuantityType[]
         {
@@ -87,7 +86,7 @@ namespace UnitsConverter.Fluent.Plugin
                 foreach (var toUnit in quantity.QuantityInfo.UnitInfos)
                 {
                     string toUnitName = toUnit.Name.ToLower();
-                    if (fromUnitStr == toUnitName || toUnitName == "undefined") continue;
+                    if (fromUnit.Equals(toUnit)  || toUnitName == "undefined") continue;
                     var convertedValue = UnitConverter.Convert(convertModel.Value, fromUnit, toUnit.Value);
                     results.Add(Quantity.From(convertedValue, toUnit.Value));
                 }
@@ -112,7 +111,6 @@ namespace UnitsConverter.Fluent.Plugin
 
                     if (!double.IsNaN(convertedValue))
                     {
-                        //UnitConversionResult result = new UnitConversionResult(Math.Round(convertedValue, _roundingFractionalDigits), convertModel.ToUnit, quantityType);
                         results.Add(Quantity.From(convertedValue, toUnit));
                     }
                 }
@@ -123,7 +121,6 @@ namespace UnitsConverter.Fluent.Plugin
                 {
                     results.AddRange(ConvertFromUnit(convertModel, quantityType).ToList());
                 }
-
             }
 
             return results;

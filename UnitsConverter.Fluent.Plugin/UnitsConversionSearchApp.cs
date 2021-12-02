@@ -1,4 +1,5 @@
-﻿using Blast.API.Search;
+﻿using Avalonia.Input;
+using Blast.API.Search;
 using Blast.API.Search.SearchOperations;
 using Blast.Core;
 using Blast.Core.Interfaces;
@@ -24,6 +25,9 @@ namespace UnitsConverter.Fluent.Plugin
         private SearchApplicationInfo _applicationInfo;
         private readonly List<ISearchOperation> _supportedOperations;
         private readonly List<ISearchOperation> _convertedOperations;
+        private CopySearchOperation _copyOperation = new CopySearchOperation("Copy Value and Unit Abbr");
+        private CopySearchOperation _copyValueOnlyOperation = new CopySearchOperation("Copy Value Only") { KeyGesture = new KeyGesture(Key.D1, KeyModifiers.Control) };
+        private CopySearchOperation _copyValueUnitOperation = new CopySearchOperation("Copy Value And Full Unit Name") { KeyGesture = new KeyGesture(Key.D2, KeyModifiers.Control)};
 
         private List<QuantityType> _supportedQuantities = new List<QuantityType> {
             QuantityType.Acceleration,
@@ -44,7 +48,6 @@ namespace UnitsConverter.Fluent.Plugin
         {
             _searchTags = new List<SearchTag> { new SearchTag() { Name = "unitsconverter", Description = "Converts Units", IconGlyph = IconGlyph } };
 
-            var copySearchOperation = new CopySearchOperation();
             var unitsConversionSearchOperation = new UnitsConversionSearchOperation();
 
             _supportedOperations = new List<ISearchOperation>
@@ -52,10 +55,10 @@ namespace UnitsConverter.Fluent.Plugin
                 new UnitsConversionSearchOperation()
             };
 
-            _convertedOperations = new List<ISearchOperation> { new CopySearchOperation() };
+            _convertedOperations = new List<ISearchOperation> { _copyOperation, _copyValueOnlyOperation, _copyValueUnitOperation };
 
             _applicationInfo = new SearchApplicationInfo(SearchAppName, "This app converts units", 
-                new SearchOperationBase[] { copySearchOperation, unitsConversionSearchOperation })
+                new SearchOperationBase[] { _copyOperation, unitsConversionSearchOperation })
             {
                 IsProcessSearchEnabled = false,
                 IsProcessSearchOffline = false,
@@ -78,9 +81,25 @@ namespace UnitsConverter.Fluent.Plugin
             switch (searchResult)
             {
 
-                case UnitsConversionSearchResult:
-                    string resultToCopy = searchResult.ResultName;
-                    Clipboard.SetText(resultToCopy);
+                case UnitsConversionSearchResult unitsConversionSearchResult:
+                    string textToCopy = "";
+                    if (unitsConversionSearchResult.SelectedOperation == _copyOperation)
+                    {
+                        textToCopy = unitsConversionSearchResult.ValueWithUnitAbbrev;
+                    }
+                    else if (unitsConversionSearchResult.SelectedOperation == _copyValueOnlyOperation)
+                    {
+                        textToCopy = unitsConversionSearchResult.ValueOnly;
+                    }
+                    else if (unitsConversionSearchResult.SelectedOperation == _copyValueUnitOperation)
+                    {
+                        textToCopy = unitsConversionSearchResult.ValueWithUnit;
+                    }
+                    else
+                    {
+                        textToCopy = unitsConversionSearchResult.ValueWithUnitAbbrev;
+                    }
+                    Clipboard.SetText(textToCopy);
                     return new ValueTask<IHandleResult>(new HandleResult(true, false));
                 case QuantitySearchResult:
                     SearchTag searchTag = searchResult.Tags.FirstOrDefault();
