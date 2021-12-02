@@ -128,6 +128,11 @@ namespace UnitsConverter.Fluent.Plugin
             string searchedTag = searchRequest.SearchedTag;
             string searchedText = searchRequest.SearchedText;
 
+            if (searchedTag != UnitsConverterSearchTag)
+            {
+                yield break;
+            }
+
             if (string.IsNullOrWhiteSpace(searchedText))
             {
                 yield return new QuantitySearchResult(searchedText, _supportedQuantities, IconGlyph, _supportedOperations);
