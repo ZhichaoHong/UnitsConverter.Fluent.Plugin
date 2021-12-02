@@ -1,4 +1,5 @@
-﻿using Blast.API.Search;
+﻿using Avalonia.Input;
+using Blast.API.Search;
 using Blast.API.Search.SearchOperations;
 using Blast.Core;
 using Blast.Core.Interfaces;
@@ -24,6 +25,9 @@ namespace UnitsConverter.Fluent.Plugin
         private SearchApplicationInfo _applicationInfo;
         private readonly List<ISearchOperation> _supportedOperations;
         private readonly List<ISearchOperation> _convertedOperations;
+        private CopySearchOperation _copyOperation = new CopySearchOperation("Copy Value and Unit Abbr");
+        private CopySearchOperation _copyValueOnlyOperation = new CopySearchOperation("Copy Value Only") { KeyGesture = new KeyGesture(Key.D1, KeyModifiers.Control) };
+        private CopySearchOperation _copyValueUnitOperation = new CopySearchOperation("Copy Value And Full Unit Name") { KeyGesture = new KeyGesture(Key.D2, KeyModifiers.Control)};
 
         private List<QuantityType> _supportedQuantities = new List<QuantityType> {
             QuantityType.Acceleration,
@@ -42,9 +46,8 @@ namespace UnitsConverter.Fluent.Plugin
 
         public UnitsConversionSearchApp()
         {
-            _searchTags = _supportedQuantities.Select(x => new SearchTag { Name = x.ToString(), Description = $"Converts {x.ToString()} Units", IconGlyph = IconGlyph }).ToList();
+            _searchTags = new List<SearchTag> { new SearchTag() { Name = "unitsconverter", Description = "Converts Units", IconGlyph = IconGlyph } };
 
-            var copySearchOperation = new CopySearchOperation();
             var unitsConversionSearchOperation = new UnitsConversionSearchOperation();
 
             _supportedOperations = new List<ISearchOperation>
@@ -52,14 +55,14 @@ namespace UnitsConverter.Fluent.Plugin
                 new UnitsConversionSearchOperation()
             };
 
-            _convertedOperations = new List<ISearchOperation> { new CopySearchOperation() };
+            _convertedOperations = new List<ISearchOperation> { _copyOperation, _copyValueOnlyOperation, _copyValueUnitOperation };
 
             _applicationInfo = new SearchApplicationInfo(SearchAppName, "This app converts units", 
-                new SearchOperationBase[] { copySearchOperation, unitsConversionSearchOperation })
+                new SearchOperationBase[] { _copyOperation, unitsConversionSearchOperation })
             {
                 IsProcessSearchEnabled = false,
                 IsProcessSearchOffline = false,
-                SearchTagOnly = true,
+                SearchTagOnly = false,
                 ApplicationIconGlyph = IconGlyph,
                 SearchAllTime = ApplicationSearchTime.Fast,
                 DefaultSearchTags = _searchTags
@@ -75,23 +78,39 @@ namespace UnitsConverter.Fluent.Plugin
 
         public ValueTask<IHandleResult> HandleSearchResult(ISearchResult searchResult)
         {
-            Type type = searchResult.GetType();
-
-            if (type == typeof(QuantitySearchResult))
+            switch (searchResult)
             {
-                // This will cause Fluent Search to search again using the selected quantity type
-                SearchTag searchTag = searchResult.Tags.FirstOrDefault();
-                return new ValueTask<IHandleResult>(new HandleResult(true, true)
-                {
-                    SearchRequest = new SearchRequest(string.Empty, searchTag?.Name, SearchType.SearchAll),
-                    SearchTag = searchTag
-                });
-            }
 
-            // Type is UnitsConversionSearchResult
-            string resultToCopy = searchResult.ResultName;
-            Clipboard.SetText(resultToCopy);
-            return new ValueTask<IHandleResult>(new HandleResult(true, false));
+                case UnitsConversionSearchResult unitsConversionSearchResult:
+                    string textToCopy = "";
+                    if (unitsConversionSearchResult.SelectedOperation == _copyOperation)
+                    {
+                        textToCopy = unitsConversionSearchResult.ValueWithUnitAbbrev;
+                    }
+                    else if (unitsConversionSearchResult.SelectedOperation == _copyValueOnlyOperation)
+                    {
+                        textToCopy = unitsConversionSearchResult.ValueOnly;
+                    }
+                    else if (unitsConversionSearchResult.SelectedOperation == _copyValueUnitOperation)
+                    {
+                        textToCopy = unitsConversionSearchResult.ValueWithUnit;
+                    }
+                    else
+                    {
+                        textToCopy = unitsConversionSearchResult.ValueWithUnitAbbrev;
+                    }
+                    Clipboard.SetText(textToCopy);
+                    return new ValueTask<IHandleResult>(new HandleResult(true, false));
+                case QuantitySearchResult:
+                    SearchTag searchTag = searchResult.Tags.FirstOrDefault();
+                    return new ValueTask<IHandleResult>(new HandleResult(true, true)
+                    {
+                        SearchRequest = new SearchRequest(string.Empty, searchTag?.Name, SearchType.SearchAll),
+                        SearchTag = searchTag
+                    });
+                default:
+                    return new(); // default do nothing
+            }
         }
 
         public ValueTask<ISearchResult> GetSearchResultForId(string serializedSearchObjectId)
@@ -105,51 +124,31 @@ namespace UnitsConverter.Fluent.Plugin
         {
             if (cancellationToken.IsCancellationRequested || searchRequest.SearchType == SearchType.SearchProcess)
                 yield break;
+
             string searchedTag = searchRequest.SearchedTag;
             string searchedText = searchRequest.SearchedText;
 
-            QuantityType quantityType = QuantityType.Undefined;
-            if (!searchedTag.Equals(UnitsConverterSearchTag) &&
-                !_supportedQuantities.Any(x => Enum.TryParse<QuantityType>(searchedTag, true, out quantityType)))
-                yield break;
-
-            if (quantityType == QuantityType.Undefined)
+            if (string.IsNullOrWhiteSpace(searchedText))
             {
-                bool searchAll = string.IsNullOrWhiteSpace(searchedText);
-                foreach(string quantityName in _supportedQuantities.Select(x => x.ToString()))
-                {
-                    if (searchAll || quantityName.SearchBlind(searchedTag))
-                        yield return new QuantitySearchResult(searchedText, quantityName, IconGlyph, _supportedOperations);
-                }
+                yield return new QuantitySearchResult(searchedText, _supportedQuantities, IconGlyph, _supportedOperations);
+            }
+
+            string query = searchedText;
+            ConvertModel model = InputInterpreter.Parse(query);
+            if (model == null)
+            {
                 yield break;
             }
 
-            var results = new List<IQuantity>();
-            try
+            if (model.ToUnit != null || searchedTag.Equals(UnitsConverterSearchTag))
             {
-                string[] parts = searchedText.Split(new string[] { "in", "to" }, StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length > 1)
+                var quantities = UnitHandler.Convert(model);
+                foreach (var q in quantities)
                 {
-                    results = ConvertUtil.Convert(parts[0].Trim(), quantityType, parts[1].Trim());
-                }
-                else
-                {
-                    results = ConvertUtil.Convert(parts[0].Trim(), quantityType);
-                }
-                if (results.Count == 0)
-                {
-                    yield break;
+                    double score = (searchedTag != UnitsConverterSearchTag) ? 90.0 : 1.0;
+                    yield return new UnitsConversionSearchResult(searchedText, q, IconGlyph, _convertedOperations, _searchTags, score);
                 }
             }
-            catch (Exception ex)
-            {
-                yield break;
-            }
-            foreach (var r in results)
-            {
-                yield return new UnitsConversionSearchResult(searchedText, r, IconGlyph, _convertedOperations, _searchTags);
-            }
-
         }
     }
 }

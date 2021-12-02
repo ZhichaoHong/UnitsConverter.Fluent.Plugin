@@ -10,7 +10,7 @@ namespace UnitsConverter.Fluent.Plugin
 {
     public class UnitsConversionSearchOperation : SearchOperationBase
     {
-        public UnitsConversionSearchOperation() : base("UnitsConverter", "Converts units in give quantity type", "\uE8EF")
+        public UnitsConversionSearchOperation() : base("UnitsConverter", "Converts units in a given quantity type", "\uE8EF")
         {
             HideMainWindow = false;
         }

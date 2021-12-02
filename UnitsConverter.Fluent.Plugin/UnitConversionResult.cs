@@ -16,5 +16,14 @@ namespace UnitsConverter.Fluent.Plugin
             UnitName = unitName;
             QuantityType = quantityType;
         }
+
+        public UnitConversionResult(IQuantity quantity)
+        {
+            String[] parts = quantity.ToString().Split(' ');
+
+            ConvertedValue = quantity.Value;
+            UnitName = parts[1];
+            QuantityType = quantity.QuantityInfo.QuantityType;
+        }
     }
 }
