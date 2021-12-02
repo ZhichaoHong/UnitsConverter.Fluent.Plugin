@@ -24,7 +24,7 @@ namespace UnitsConverter.Fluent.Plugin
         /// </summary>
         public static void InputSpaceInserter(ref string[] split)
         {
-            if (split.Length != 3)
+            if (split.Length != 3 && split.Length != 1)
             {
                 return;
             }
