@@ -120,7 +120,9 @@ namespace UnitsConverter.Fluent.Plugin
             return new();
         }
 
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
         public async IAsyncEnumerable<ISearchResult> SearchAsync(SearchRequest searchRequest, [EnumeratorCancellation]CancellationToken cancellationToken)
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
         {
             if (cancellationToken.IsCancellationRequested || searchRequest.SearchType == SearchType.SearchProcess)
                 yield break;
@@ -128,7 +130,7 @@ namespace UnitsConverter.Fluent.Plugin
             string searchedTag = searchRequest.SearchedTag;
             string searchedText = searchRequest.SearchedText;
 
-            if (searchedTag != UnitsConverterSearchTag)
+            if (searchedTag != UnitsConverterSearchTag && string.IsNullOrWhiteSpace(searchedText))
             {
                 yield break;
             }
