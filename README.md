@@ -15,3 +15,5 @@ Currently supports the following units (UnitsNet)
    - QuantityType.Speed,
    - QuantityType.Temperature,
    - QuantityType.Volume
+
+For more details about the supported quantities and their units definitions, please see https://github.com/angularsen/UnitsNet/tree/master/Common/UnitDefinitions.
